@@ -56,6 +56,7 @@ const Select = React.createClass({
 		clearAllText: stringOrNode,                 // title for the "clear" control when multi: true
 		clearValueText: stringOrNode,               // title for the "clear" control
 		clearable: React.PropTypes.bool,            // should it be possible to reset value
+		compareOptions: React.PropTypes.func,       // optional callback to compare two option values for equality
 		delimiter: React.PropTypes.string,          // delimiter to use to join multiple values for the hidden field value
 		disabled: React.PropTypes.bool,             // whether the Select is disabled or not
 		dropdownComponent: React.PropTypes.func,    // dropdown component to render the menu in
@@ -111,7 +112,7 @@ const Select = React.createClass({
 		valueComponent: React.PropTypes.func,       // value component to render
 		valueKey: React.PropTypes.string,           // path of the label value in option objects
 		valueRenderer: React.PropTypes.func,        // valueRenderer: function (option) {}
-		wrapperStyle: React.PropTypes.object,       // optional style to apply to the component wrapper
+		wrapperStyle: React.PropTypes.object        // optional style to apply to the component wrapper
 	},
 
 	statics: { Async },
@@ -248,6 +249,28 @@ const Select = React.createClass({
 		if (prevProps.disabled !== this.props.disabled) {
 			this.setState({ isFocused: false }); // eslint-disable-line react/no-did-update-set-state
 			this.closeMenu();
+		}
+	},
+
+	findOptionInByValue (haystack, needle) {
+		if (this.props.compareOptions) {
+			return haystack.find(elem =>
+				this.props.compareOptions(
+					elem[this.props.valueKey],
+					needle));
+		} else {
+			return haystack.find(elem =>
+				elem[this.props.valueKey] === needle);
+		}
+	},
+
+	findOptionIn (haystack, needle) {
+		if (this.props.compareOptions) {
+			return this.findOptionInByValue(haystack, needle[this.props.valueKey]);
+		} else {
+			let index = haystack.indexOf(needle);
+
+			return (index > -1) ? haystack[index] : null;
 		}
 	},
 
@@ -547,9 +570,8 @@ const Select = React.createClass({
 		let { labelKey, valueKey, renderInvalidValues } = this.props;
 		let options = this._flatOptions;
 		if (!options || value === '') return;
-		for (var i = 0; i < options.length; i++) {
-			if (options[i][valueKey] === value) return options[i];
-		}
+		let potentialValue = this.findOptionInByValue(options, value);
+		if (potentialValue) return potentialValue;
 
 		// no matching option, return an invalid option if renderInvalidValues is enabled
 		if (renderInvalidValues) {
@@ -969,7 +991,7 @@ const Select = React.createClass({
 							</OptionGroup>
 						);
 					} else {
-						let isSelected = valueArray && valueArray.indexOf(option) > -1;
+						let isSelected = !!(valueArray && this.findOptionIn(valueArray, option));
 						let isFocused = option === focusedOption;
 						let optionRef = isFocused ? 'focused' : null;
 						let optionClass = classNames(this.props.optionClassName, {
