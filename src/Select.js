@@ -111,6 +111,7 @@ const Select = React.createClass({
 		valueKey: React.PropTypes.string,           // path of the label value in option objects
 		valueRenderer: React.PropTypes.func,        // valueRenderer: function (option) {}
 		wrapperStyle: React.PropTypes.object,       // optional style to apply to the component wrapper
+		compareOptions: React.PropTypes.func,       // optional callback to compare two option values for equality
 	},
 
 	statics: { Async },
@@ -168,6 +169,27 @@ const Select = React.createClass({
 			isPseudoFocused: false,
 			required: false,
 		};
+	},
+
+	findOptionInByValue (haystack, needle) {
+		if (this.props.compareOptions) {
+			return haystack.find(elem =>
+				this.props.compareOptions(elem[this.props.valueKey],
+				                          needle));
+		} else {
+			return haystack.find(elem =>
+			elem[this.props.valueKey] === needle)
+		}
+	},
+
+	findOptionIn (haystack, needle) {
+		if (this.props.compareOptions) {
+			return this.findOptionInByValue(haystack, needle[this.props.valueKey]);
+		} else {
+			let index = haystack.indexOf(needle);
+
+			return (index > -1) ? haystack[i] : null;
+		}
 	},
 
 	componentWillMount() {
@@ -520,9 +542,8 @@ const Select = React.createClass({
 		let { labelKey, valueKey, renderInvalidValues } = this.props;
 		let options = this._flatOptions;
 		if (!options || value === '') return;
-		for (var i = 0; i < options.length; i++) {
-			if (options[i][valueKey] === value) return options[i];
-		}
+		let potentialValue = this.findOptionInByValue(options, value);
+		if (potentialValue) return potentialValue;
 
 		// no matching option, return an invalid option if renderInvalidValues is enabled
 		if (renderInvalidValues) {
@@ -937,7 +958,7 @@ const Select = React.createClass({
 							</OptionGroup>
 						);
 					} else {
-						let isSelected = valueArray && valueArray.indexOf(option) > -1;
+						let isSelected = valueArray && this.findOptionIn(valueArray, option);
 						let isFocused = option === focusedOption;
 						let optionRef = isFocused ? 'focused' : null;
 						let optionClass = classNames(this.props.optionClassName, {
